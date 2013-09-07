@@ -6,7 +6,7 @@ module SetupWrapper (setupWrapper) where
 
 import Distribution.Package
 import Distribution.Compiler
-import Distribution.Simple.Utils
+import Distribution.Simple.Utils hiding (moreRecentFile)
 import Distribution.Simple.Program
 import Distribution.Simple.Compiler
 import Distribution.Simple.BuildPaths (exeExtension)
