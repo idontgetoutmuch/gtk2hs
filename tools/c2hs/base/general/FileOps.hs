@@ -27,6 +27,7 @@
 --
 --- TODO ----------------------------------------------------------------------
 --
+{-# LANGUAGE CPP #-}
 
 module FileOps (fileFindIn, mktemp)
 where
@@ -39,9 +40,15 @@ import System.IO	 (Handle, IOMode(..), openFile)
 import Control.Monad	 (liftM)
 import Control.Exception (catch, SomeException)
 import System.Random    (newStdGen, randomRs)
+#if __GLASGOW_HASKELL__ >= 706
+import System.IO.Error (catchIOError)
+#endif
 
 import FNameOps  (dirname, stripDirname, addPath)
 
+#if __GLASGOW_HASKELL__ < 706
+catchIOError = catch
+#endif
 
 -- search for the given file in the given list of directories (EXPORTED)
 --
@@ -91,7 +98,7 @@ mktemp pre post =
 			     in do
 			       h <- openFile fname ReadWriteMode
 			       return (h, fname)
-			     `catch` handler attempts rs'
+			     `catchIOError` \_ -> createLoop (attempts - 1) rs'
     --
     handler :: Int -> [Int] -> SomeException -> IO (Handle,FilePath)
     handler attempts rs' _ = createLoop (attempts - 1) rs'

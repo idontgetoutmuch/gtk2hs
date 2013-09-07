@@ -61,6 +61,8 @@
 --    errors into exceptions
 --
 
+{-# LANGUAGE CPP #-}
+
 module StateTrans (-- the monad and the generic operations
 		   --
 		   STB, fixSTB,
@@ -85,11 +87,17 @@ import Control.Monad      (liftM)
 import Control.Exception  (catch)
 import System.IO  (fixIO)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+#if __GLASGOW_HASKELL__ >= 706
+import System.IO.Error (catchIOError)
+#endif
 
 import Errors (interr)
 
 infixr 1 +>=, +>
 
+#if __GLASGOW_HASKELL__ < 706
+catchIOError = catch
+#endif
 
 -- BEWARE! You enter monad country. Read any of Wadler's or 
 -- Launchbury/Peyton-Jones' texts before entering. Otherwise,
@@ -154,17 +162,17 @@ fixSTB   :: (a -> STB bs gs a) -> STB bs gs a
 -- future overall result wrapped into a closure with the function extracting
 -- the user-level result component is used to build the cycle
 --
-fixSTB m  = STB $ \bs gs 
-		  -> fixIO (\future -> let 
-					 STB m' = m (extractResult future) 
-				       in 
-				       m' bs gs)
+fixSTB m  = STB $ \bs gs
+          -> fixIO (\future -> let
+                     STB m' = m (extractResult future)
+                       in
+                       m' bs gs)
             where
-	      extractResult (_, _, Right r) = r
-	      extractResult (_, _, Left _ ) = interr "StateTrans: fixSTB: \
-						     \Tried to access result \
-						     \of unsuccessful \
-						     \recursive computation!"
+          extractResult (_, _, Right r) = r
+          extractResult (_, _, Left _ ) = interr "StateTrans: fixSTB: \
+                             Tried to access result \
+                             of unsuccessful \
+                             recursive computation!"
 
 
 -- generic state manipulation
@@ -340,10 +348,10 @@ fatalsHandledBy m handler  =
 				  ioError err
 	      Right a          -> return state
 	    )
-	    `catch` (\err -> let
-			       STB handler' = handler err
-			     in
-			     handler' bs gs)
+	    `catchIOError` (\err -> let
+						  STB handler' = handler err
+						in
+						handler' bs gs)
 
 
 -- list mutable variables and arrays stuff into `STB'; all (EXPORTED)
