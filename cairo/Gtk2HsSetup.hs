@@ -34,6 +34,7 @@ import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(withPackageDB, buildDi
                                            componentPackageDeps,
                                            absoluteInstallDirs)
 import Distribution.Simple.Compiler  ( Compiler(..) )
+import Distribution.Simple.Program.Find ( defaultProgramSearchPath )
 import Distribution.Simple.Program (
   Program(..), ConfiguredProgram(..),
   rawSystemProgramConf, rawSystemProgramStdoutConf, programName, programPath,
@@ -441,7 +442,7 @@ sortTopological ms = reverse $ fst $ foldl visit ([], S.empty) (map mdOriginal m
 checkGtk2hsBuildtools :: [Program] -> IO ()
 checkGtk2hsBuildtools programs = do
   programInfos <- mapM (\ prog -> do
-                         location <- programFindLocation prog normal
+                         location <- programFindLocation prog normal defaultProgramSearchPath
                          return (programName prog, location)
                       ) programs
   let printError name = do
