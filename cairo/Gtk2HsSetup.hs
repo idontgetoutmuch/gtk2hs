@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP, ViewPatterns #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
 
 #ifndef CABAL_VERSION_CHECK
 #error This module has to be compiled via the Setup.hs program which generates the gtk2hs-macros.h file
@@ -36,7 +37,7 @@ import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(withPackageDB, buildDi
 import Distribution.Simple.Compiler  ( Compiler(..) )
 import Distribution.Simple.Program.Find ( defaultProgramSearchPath )
 import Distribution.Simple.Program (
-  Program(..), ConfiguredProgram(..),
+  Program(..), ConfiguredProgram(..), ProgramSearchPath,
   rawSystemProgramConf, rawSystemProgramStdoutConf, programName, programPath,
   c2hsProgram, pkgConfigProgram, gccProgram, requireProgram, ghcPkgProgram,
   simpleProgram, lookupProgram, rawSystemProgramStdout, ProgArg)
@@ -438,11 +439,26 @@ sortTopological ms = reverse $ fst $ foldl visit ([], S.empty) (map mdOriginal m
           where
             (out',visited') = foldl visit (out, m `S.insert` visited) (mdRequires md)
 
+-- 'ConstOrId' is a @Cabal-1.16@ vs @Cabal-1.18@ compatibility hack,
+-- 'programFindLocation' has a new (unused in this case)
+-- parameter. 'ConstOrId' adds this parameter when types say it is
+-- mandatory.
+class ConstOrId a b where
+    constOrId :: a -> b
+
+instance ConstOrId a a where
+    constOrId = id
+
+instance ConstOrId a (b -> a) where
+    constOrId = const
+
 -- Check user whether install gtk2hs-buildtools correctly.
 checkGtk2hsBuildtools :: [Program] -> IO ()
 checkGtk2hsBuildtools programs = do
   programInfos <- mapM (\ prog -> do
-                         location <- programFindLocation prog normal defaultProgramSearchPath
+                         let compat :: ProgramSearchPath -> IO (Maybe FilePath)
+                             compat = constOrId (programFindLocation prog normal)
+                         location <- compat defaultProgramSearchPath
                          return (programName prog, location)
                       ) programs
   let printError name = do
